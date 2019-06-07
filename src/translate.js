@@ -2385,7 +2385,7 @@ const buildRelatedTypeListComprehension = ({
   const relatedTypeVariable = safeVar(`_${relatedType.toLowerCase()}`);
   // builds a path pattern within a list comprehension
   // that extracts related nodes
-  return `[(${thisTypeVariable})${relationDirection === 'IN' ? '<' : ''}-[${
+  return `[(${variableName})${relationDirection === 'IN' ? '<' : ''}-[${
     isRelationType
       ? safeVar(`_${relationVariable}`)
       : isRelationTypeNode

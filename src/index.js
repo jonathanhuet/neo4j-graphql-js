@@ -37,6 +37,10 @@ export async function neo4jgraphql(
   const cypherFunction = isMutation(resolveInfo) ? cypherMutation : cypherQuery;
   [query, cypherParams] = cypherFunction(params, context, resolveInfo);
 
+  let scopedCypher = addScoping(query, cypherParams, context, resolveInfo);
+  query = scopedCypher.query;
+  cypherParams = scopedCypher.cypherParams;
+
   if (debug) {
     console.log(query);
     console.log(JSON.stringify(cypherParams, null, 2));
@@ -173,4 +177,48 @@ export const inferSchema = (driver, config = {}) => {
   const tree = new Neo4jSchemaTree(driver, config);
 
   return tree.initialize().then(graphQLMapper);
+};
+
+const addScoping = (query, cypherParams, context, resolveInfo) => {
+  if (!isMutation(resolveInfo)) {
+    let queryRegex = /^MATCH (\(`(?<mainVariable>.+)`:`(?<mainNode>.+)`(?<mainNodeProperties> \{[a-zA-Z0-9:$]*\})?\))(?<mainWhereClause> WHERE (?<mainWhereConditions>.*?))?( WITH (?<withClause>.*?))?(?<orderByClause> ORDER BY (.*?))?(?<returnClause> RETURN (.*))$/g;
+    console.log('cypherParams--> ', cypherParams);
+    console.log('query--> ', query);
+    let {
+      mainVariable,
+      mainNode,
+      mainNodeProperties,
+      mainWhereClause,
+      mainWhereConditions,
+      withClause,
+      orderByClause,
+      returnClause
+    } = queryRegex.exec(query).groups;
+    let mainWhereScopingConditions = '';
+    let mainWhereClauseScoped = '';
+    if (context.scopeParams.companyId) {
+      if (mainNode === 'Company') {
+      } else {
+        mainWhereScopingConditions = `(\`${mainVariable}\`)<-[*]-(:Company{id:${
+          context.scopeParams.companyId
+        }}) ${mainWhereClause ? ' AND ' : ''}`;
+      }
+    }
+    if (mainWhereClause || mainWhereScopingConditions) {
+      mainWhereClauseScoped = ` WHERE (${mainWhereScopingConditions}${
+        mainWhereConditions ? mainWhereConditions : ''
+      })`;
+    }
+    let queryScoped = `MATCH (\`${mainVariable}\`:\`${mainNode}\`${
+      mainNodeProperties ? ` ${mainNodeProperties}` : ''
+    })${mainWhereClauseScoped}${withClause ? `WITH ${withClause}` : ''}${
+      orderByClause ? orderByClause : ''
+    } ${returnClause}`;
+
+    console.log('queryScoped--> ', queryScoped);
+
+    return { query: queryScoped, cypherParams };
+  } else {
+    return { query, cypherParams };
+  }
 };

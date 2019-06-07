@@ -2332,11 +2332,61 @@ var translateFilterArgument = function translateFilterArgument(_ref34) {
 
 var parseFilterArgumentName = function parseFilterArgumentName(fieldName) {
   var fieldNameParts = fieldName.split('_');
+
+  var filterTypes = [
+    '_not',
+    '_in',
+    '_not_in',
+    '_contains',
+    '_not_contains',
+    '_starts_with',
+    '_not_starts_with',
+    '_ends_with',
+    '_not_ends_with',
+    '_lt',
+    '_lte',
+    '_gt',
+    '_gte',
+    '_some',
+    '_none',
+    '_single',
+    '_every'
+  ];
+
   var filterType = '';
+
   if (fieldNameParts.length > 1) {
-    fieldName = fieldNameParts.shift();
-    filterType = fieldNameParts.join('_');
+    var regExp = [];
+
+    _lodash2.default.each(filterTypes, function(f) {
+      regExp.push(f + '$');
+    });
+
+    var regExpJoin = '(' + regExp.join('|') + ')';
+    var preparedFieldAndFilterField = _lodash2.default.replace(
+      fieldName,
+      new RegExp(regExpJoin),
+      '[::filterFieldSeperator::]$1'
+    );
+
+    var _preparedFieldAndFilt = preparedFieldAndFilterField.split(
+        '[::filterFieldSeperator::]'
+      ),
+      _preparedFieldAndFilt2 = (0, _slicedToArray3.default)(
+        _preparedFieldAndFilt,
+        2
+      ),
+      parsedField = _preparedFieldAndFilt2[0],
+      parsedFilterField = _preparedFieldAndFilt2[1];
+
+    fieldName = !_lodash2.default.isUndefined(parsedField)
+      ? parsedField
+      : fieldName;
+    filterType = !_lodash2.default.isUndefined(parsedFilterField)
+      ? parsedFilterField.substr(1)
+      : ''; // Strip off first underscore
   }
+
   return {
     name: fieldName,
     type: filterType
